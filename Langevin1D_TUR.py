@@ -96,24 +96,12 @@ def make_RHS_eq(data,A,D,binsize=200):
 
 def make_RHS_b(f,df,data,A,D):
     #<fA+D∇f>
-    aveJ=np.array([A(x)*f(x)+D*df(x) for x in data]).sum() #mean()    
+    aveJ=np.array([A(x)*f(x)+D*df(x) for x in data]).mean()    
     #<fDf>?
     varJ=2*np.array([f(x)*f(x)*D for x in data]).mean()
     return 2*aveJ*aveJ/(varJ),aveJ,varJ
 
-def make_RHS_v(f,data,dt=0.1,binsize=200):
-    p, bin_edges=histogram_p(data,binsize)
-    dx=(data.max()-data.min())/binsize
-    #f(x)○dx=f(x+x/2)*dx
-    #fdx=np.array([f(x+dx/2) for x in bin_edges[:-2]])/dt
-    fdx=np.array([(f(x)+f(x+dx))/2 for x in bin_edges[:-2]])/dt #*dx
-    aveJ=(fdx*p[:-1]).sum()   
-    v2=(fdx*fdx).mean()
-#    print(v2)
-    var=(v2-aveJ*aveJ)
-    return (2*aveJ*aveJ)/(var*dt),aveJ,var*dt
-
-def make_RHS_v2(f,data,dt=0.1):
+def make_RHS_v(f,data,dt=0.1):
     #f(x)○dx=(f(x)+f(x))/2*dx
     fdx=np.array([ (f(data[i+1])+f(data[i]))/2*(data[i+1]-data[i]) for i in range(len(data)-1)])/dt
     aveJ=fdx.mean()
@@ -131,7 +119,7 @@ def tmp(A,sq2beta,T,dt):
 #    print(d1,d2)
     print(d1.sum(),d2.sum())
 
-def compare_ave(data,f,df,A,sq2beta,dt,binsize=200):
+def compare_ave(data,f,df,A,sq2beta,dt,binsize=200,print_formulars=False):
     rng=np.random.default_rng(1)
     D=1/2*sq2beta*sq2beta
     p, bin_edges=histogram_p(data,binsize)
@@ -146,24 +134,25 @@ def compare_ave(data,f,df,A,sq2beta,dt,binsize=200):
     di=range(len(data)-1)
 
     fdx=np.array([ (f(data[i+1])+f(data[i]))/2*(data[i+1]-data[i]) for i in di])/dt
-    print(0,fdx.sum(),fdx.mean())
-    _fdx=np.array([ (f(data[i+1])+f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng) for i in di])/dt
-    print(1,_fdx.sum(),_fdx.mean())
-    _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*dlangevin1D_sq(data[i],A,sq2beta,dt,rng) for i in di])/dt
-    print(2,_fdx.sum(),_fdx.mean())
-    _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
-    print(3,_fdx.sum(),_fdx.mean())
-    _fdx=np.array([ df(data[i])*(data[i+1]-data[i])/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
-    print(4,_fdx.sum(),_fdx.mean())
-    _fdx=np.array([ df(data[i])/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
-    print(5,_fdx.sum(),_fdx.mean())
-    _fdx=np.array([ df(data[i])*D*dt+f(data[i])*A(data[i])*dt for i in di])/dt
-    print(6,_fdx.sum(),_fdx.mean())
-    _fdx=np.array([ df(data[i])*D+f(data[i])*A(data[i]) for i in di])
-    print(7,_fdx.sum(),_fdx.mean())
-    _fdx=np.array([ df(x)*D+f(x)*A(x) for x in data])
-    print(8,_fdx.sum(),_fdx.mean())
-    #A(x)*dt+sq2beta*np.random.random(N)*np.sqrt(dt)
+    if(print_formulars):
+        print(0,fdx.sum(),fdx.mean())
+        _fdx=np.array([ (f(data[i+1])+f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng) for i in di])/dt
+        print(1,_fdx.sum(),_fdx.mean())
+        _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*dlangevin1D_sq(data[i],A,sq2beta,dt,rng) for i in di])/dt
+        print(2,_fdx.sum(),_fdx.mean())
+        _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
+        print(3,_fdx.sum(),_fdx.mean())
+        _fdx=np.array([ df(data[i])*(data[i+1]-data[i])/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
+        print(4,_fdx.sum(),_fdx.mean())
+        _fdx=np.array([ df(data[i])/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
+        print(5,_fdx.sum(),_fdx.mean())
+        _fdx=np.array([ df(data[i])*D*dt+f(data[i])*A(data[i])*dt for i in di])/dt
+        print(6,_fdx.sum(),_fdx.mean())
+        _fdx=np.array([ df(data[i])*D+f(data[i])*A(data[i]) for i in di])
+        print(7,_fdx.sum(),_fdx.mean())
+        _fdx=np.array([ df(x)*D+f(x)*A(x) for x in data])
+        print(8,_fdx.sum(),_fdx.mean())
+        #A(x)*dt+sq2beta*np.random.random(N)*np.sqrt(dt)
 
     #ave=fdx.sum()/(dt*dt)
     ave=fdx.mean()
@@ -172,20 +161,22 @@ def compare_ave(data,f,df,A,sq2beta,dt,binsize=200):
     varJ2=2*(D*p[:-1]*fx*fx).sum()
     v2=(fdx*fdx).mean()
     var=(v2-ave*ave)
-#    return Ja.mean(),Jb.mean(),aveJb,fdx.mean(),fdx.sum(),fdx.sum()/dt,fdx.sum()/(dt*dt)
-    return [aveJa,Jb.mean(),ave], [varJ,varJ2,var*dt],[(2*aveJa*aveJa)/(varJ),(2*ave*ave)/(var*dt)]
+    rhs_a=(2*aveJa*aveJa)/(varJ)
+    rhs_v=(2*ave*ave)/(var*dt)
+    return [aveJa,Jb.mean(),ave], [varJ,varJ2,var*dt],[rhs_a,rhs_v,rhs_a/rhs_v] 
 
-
-def compare_langevin_ave(f,df,A,sq2beta,T,dt,binsize):
+def compare_langevin_ave(f,df,A,sq2beta,T,dt,binsize,with_entropy=False):
+    D=1/2*sq2beta*sq2beta
     data=langevin1D_sq(A,sq2beta,T,dt)
-    return compare_ave(data,f,df,A,sq2beta,dt,binsize)    
+    if(with_entropy):
+        return compare_ave(data,f,df,A,sq2beta,dt,binsize),make_entropy_rate(data,A,D,binsize)            
+    else:
+        return compare_ave(data,f,df,A,sq2beta,dt,binsize)
 
 def calc_ratio_fromdata(s:str,data,f,df,A,D,dt,binsize):
     rs={}
-    if("v1" in s):
-        rs["v1"]=make_RHS_v(f,data,dt,binsize)
-    if("v2" in s):
-        rs["v2"]=make_RHS_v2(f,data,dt)
+    if("v" in s):
+        rs["v"]=make_RHS_v(f,data,dt)
     if("a" in s):
         rs["a"]=make_RHS_a(f,data,A,D,binsize)
     if("eq" in s):
