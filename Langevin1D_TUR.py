@@ -24,8 +24,9 @@ def langevin1D_sq(A,sq2beta,T,dt=0.1,N=1,seed=1):
     rng = np.random.default_rng(seed)
     x=0
     data=[]
+    eps=rng.standard_normal(T)
     for i in range(T):
-        x=x+dlangevin1D_sq(x,A,sq2beta,dt,rng)
+        x=x+A(x)*dt+sq2beta*eps[i]*np.sqrt(dt) 
         data.append(x)
     return np.array(data).reshape(-1)
 
@@ -135,18 +136,29 @@ def compare_ave(data,f,df,A,sq2beta,dt,binsize=200,print_formulars=False):
 
     fdx=np.array([ (f(data[i+1])+f(data[i]))/2*(data[i+1]-data[i]) for i in di])/dt
     if(print_formulars):
+        print("formulars")
+        print("data mean",data.sum(),data.mean())
+        dx=np.array([data[i+1]-data[i] for i in di])
+        print("dx mean",dx.sum(),dx.mean())
+        a=np.array([f(data[i])*dx[i] for i in di])/dt
+        print("f*dx ",a.sum(),a.mean())        
+        a=np.array([f(data[i])*A(data[i])*dt for i in di])/dt
+        print("f*Adt ",a.sum(),a.mean())        
+        a=np.array([(f(data[i+1])-f(data[i]))*dx[i] for i in di])/dt
+        print("dfdt ",a.sum(),a.mean())        
+        
         print(0,fdx.sum(),fdx.mean())
-        _fdx=np.array([ (f(data[i+1])+f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng) for i in di])/dt
+        _fdx=np.array([ (f(data[i+1])+f(data[i]))/2*dx[i] for i in di])/dt
         print(1,_fdx.sum(),_fdx.mean())
-        _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*dlangevin1D_sq(data[i],A,sq2beta,dt,rng) for i in di])/dt
+        _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dx[i]+f(data[i])*dx[i] for i in di])/dt
         print(2,_fdx.sum(),_fdx.mean())
-        _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
+        _fdx=np.array([ (f(data[i+1])-f(data[i]))/2*dx[i]+f(data[i])*A(data[i])*dt for i in di])/dt #*
         print(3,_fdx.sum(),_fdx.mean())
-        _fdx=np.array([ df(data[i])*(data[i+1]-data[i])/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
+        _fdx=np.array([ df(data[i])*(data[i+1]-data[i])/2*dx[i]+f(data[i])*A(data[i])*dt for i in di])/dt
         print(4,_fdx.sum(),_fdx.mean())
-        _fdx=np.array([ df(data[i])/2*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)*dlangevin1D_sq(data[i],A,sq2beta,dt,rng)+f(data[i])*A(data[i])*dt for i in di])/dt
+        _fdx=np.array([ df(data[i])/2*dx[i]*dx[i]+f(data[i])*A(data[i])*dt for i in di])/dt
         print(5,_fdx.sum(),_fdx.mean())
-        _fdx=np.array([ df(data[i])*D*dt+f(data[i])*A(data[i])*dt for i in di])/dt
+        _fdx=np.array([ df(data[i])*D*dt+f(data[i])*A(data[i])*dt for i in di])/dt #
         print(6,_fdx.sum(),_fdx.mean())
         _fdx=np.array([ df(data[i])*D+f(data[i])*A(data[i]) for i in di])
         print(7,_fdx.sum(),_fdx.mean())
@@ -154,24 +166,26 @@ def compare_ave(data,f,df,A,sq2beta,dt,binsize=200,print_formulars=False):
         print(8,_fdx.sum(),_fdx.mean())
         #A(x)*dt+sq2beta*np.random.random(N)*np.sqrt(dt)
 
-    #ave=fdx.sum()/(dt*dt)
     ave=fdx.mean()
     #almost same?
-    varJ=2*np.array([f(x)*f(x)*D for x in data]).mean()   
-    varJ2=2*(D*p[:-1]*fx*fx).sum()
+    aveJb=Jb.mean()
+    varJb=2*np.array([f(x)*f(x)*D for x in data]).mean()   
+    varJa=2*(D*p[:-1]*fx*fx).sum()
     v2=(fdx*fdx).mean()
     var=(v2-ave*ave)
-    rhs_a=(2*aveJa*aveJa)/(varJ)
+    rhs_a=(2*aveJa*aveJa)/(varJa)
     rhs_v=(2*ave*ave)/(var*dt)
-    return [aveJa,Jb.mean(),ave], [varJ,varJ2,var*dt],[rhs_a,rhs_v,rhs_a/rhs_v] 
+    rhs_b=(2*aveJb*aveJb)/(varJb)
+#    assert(rhs_a>=rhs_v)
+    return [aveJa,Jb.mean(),ave], [varJa,varJb,var*dt],[rhs_a,rhs_b,rhs_v,rhs_a/rhs_v,rhs_b/rhs_v]  
 
-def compare_langevin_ave(f,df,A,sq2beta,T,dt,binsize,with_entropy=False):
+def compare_langevin_ave(f,df,A,sq2beta,T,dt,binsize,with_entropy=False,print_formulars=False):
     D=1/2*sq2beta*sq2beta
     data=langevin1D_sq(A,sq2beta,T,dt)
     if(with_entropy):
-        return compare_ave(data,f,df,A,sq2beta,dt,binsize),make_entropy_rate(data,A,D,binsize)            
+        return compare_ave(data,f,df,A,sq2beta,dt,binsize,print_formulars),make_entropy_rate(data,A,D,binsize)            
     else:
-        return compare_ave(data,f,df,A,sq2beta,dt,binsize)
+        return compare_ave(data,f,df,A,sq2beta,dt,binsize,print_formulars)
 
 def calc_ratio_fromdata(s:str,data,f,df,A,D,dt,binsize):
     rs={}
